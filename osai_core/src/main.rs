@@ -1,59 +1,52 @@
 use osai_core::OSAI;
-use std::io::{stdout, Write};
+use std::io::{self, stdout, Write};
 use std::process;
+use tokio::io::{AsyncBufReadExt, BufReader}; // tokioの非同期I/Oを使用
 
-use crossterm::{
-    cursor,
-    event::{self, Event, KeyCode},
-    execute,
-    terminal::{self, ClearType},
-};
-
+// 戻り値の型を、エラー時に Box<dyn std::error::Error> を返すように修正します。
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut stdout = stdout();
-    terminal::enable_raw_mode()?;
-    execute!(stdout, terminal::Clear(ClearType::All), cursor::MoveTo(0, 0))?;
-
+    
+    // OSAI インスタンスの初期化
     let osai = OSAI::new();
+    
+    // 標準入力を非同期で読み込むための設定
+    let stdin = tokio::io::stdin();
+    let mut reader = BufReader::new(stdin);
+    let mut buffer = String::new();
+
+    // ターミナルの初期表示
+    println!("--- OSAI CLI Interface ---");
+    println!("Commands: server, http_server, text, r_file, vocaloid, play, exit");
+    
+    // 実行結果を保持する変数。ループ内で使用
+    let mut output: Result<String, Box<dyn std::error::Error>> = Ok(String::new());
 
     loop {
-        // ループごとに新しい入力バッファ
-        let mut input = String::new();
-
-        // コマンドプロンプトを同じ行に表示
-        print!("Command:> ");
-        stdout.flush()?;
-
-        // ===== 入力ループ =====
-        loop {
-            if let Event::Key(event) = event::read()? {
-                match event.code {
-                    KeyCode::Enter => {
-                        print!("\n"); // 改行
-                        break;       // 入力完了
-                    }
-                    KeyCode::Char(c) => {
-                        input.push(c);
-                        print!("{}", c);
-                        stdout.flush()?;
-                    }
-                    KeyCode::Backspace => {
-                        if input.pop().is_some() {
-                            execute!(
-                                stdout,
-                                cursor::MoveLeft(1),
-                                terminal::Clear(ClearType::UntilNewLine)
-                            )?;
-                        }
-                    }
-                    _ => {}
-                }
+        // 前回の実行結果を表示
+        if output.is_ok() {
+            // 前回の結果がOkの場合、その内容を表示（ただし初回は空）
+            let content = output.as_ref().unwrap();
+            if !content.is_empty() {
+                 println!("{}", content);
             }
+        } else if let Err(e) = &output {
+            // エラーが発生した場合は、エラーメッセージを表示
+            eprintln!("Error: {}", e);
         }
+        
+        // --- コマンドプロンプトを表示 ---
+        print!("Command:> ");
+        stdout().flush()?;
 
-        let cmd = input.trim();
+        // --- 入力待ち（Enterが押されるまでブロック）---
+        buffer.clear();
+        reader.read_line(&mut buffer).await?;
+        let cmd = buffer.trim();
 
+        // 次のループのために出力結果をリセット
+        output = Ok(String::new());
+        
         match cmd {
             "server" => { let _ = osai.run().await; }
             "http_server" => OSAI::http_server().await?,
@@ -64,7 +57,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "exit" => process::exit(0),
             "" => continue,
             _ => println!("no cmd"),
-        }
+        } 
     }
 }
-
