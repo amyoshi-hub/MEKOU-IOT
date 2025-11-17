@@ -1,0 +1,56 @@
+# ==================================
+# Rust / Cargo
+# ==================================
+/target
+**/target
+Cargo.lock
+# IDEが自動生成するバイナリ等
+*.rs.bk
+*.swp
+/target/
+/target/release/
+/target/debug/
+/target/release/bundle/
+
+# ==================================
+# Tauri / Node / Vite / Web
+# ==================================
+# Node modules
+/node_modules
+**/node_modules
+
+# Webpack / Vite / Next / dist 出力
+/dist
+**/dist
+
+# ビルド成果物
+/build
+**/build
+
+# Viteや他バンドラーによるキャッシュ
+/.vite
+/.parcel-cache
+/.cache
+**/.vite
+**/.parcel-cache
+**/.cache
+
+# ==================================
+# OS・エディタの一時ファイル
+# ==================================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+*.log
+*.tmp
+*.bak
+*.sw?
+
+# VSCode
+.vscode/
+.idea/
+*.code-workspace
+
+# JetBrains
+*.iml
+out/

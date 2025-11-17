@@ -1,0 +1,5 @@
+[workspace]
+members = [
+  "cli",
+  "osai_core"
+, "test_area"]

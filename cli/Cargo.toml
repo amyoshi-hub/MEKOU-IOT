@@ -1,0 +1,8 @@
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+osai_core = { version = "0.1.0", path = "../osai_core" }
+tokio = "1.47.1"

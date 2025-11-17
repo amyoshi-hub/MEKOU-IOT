@@ -1,0 +1,11 @@
+いまcoreはtauriとの連携を切り離して言っている
+これによりcliからの呼び出しやnodeへの組み込みを可能にする
+
+tauriからはこのクレートをuseして開発 or コードをそのままもっていって
+
+#[tauri::command]
+fn send_text_tauri(..){
+	send_text(..);
+}
+
+とwrapsする
