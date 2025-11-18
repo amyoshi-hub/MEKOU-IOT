@@ -1,0 +1,37 @@
+task
+
+task　systemを追加する
+
+
+受け取ったtextをファイルに保存
+そしてファイルから呼び出して
+
+送信側は
+日付：時間：タスク名として送る
+sendTextを少し改造すればOK！
+
+時間になったらそれを音声でタスク名を呼び出す
+
+vocaloid("何日：何時" + taskName +"があります" + N + "分前です")
+vocaloid("起きるです")
+
+
+GUIの方はタスク表示を整理する
+
+
+IOT側
+受け取ったテキストをパース
+
+fileWrite(text);
+
+while{
+if(time == SetTime){
+	request("google-gemini" + API + "task contentがあることを私に教えてください")
+	vocaloid("gemini text");
+}
+
+
+GUI側
+タスク送信
+パッドなどにビルドしておく
+つまり人形へのアクセスはタブレット経由にできるようにする

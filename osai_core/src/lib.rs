@@ -5,6 +5,7 @@ pub mod fileIO;
 
 pub mod server;
 pub mod client;
+pub mod IOT;
 use vocaloid;
 use std::process::Command;
 
@@ -18,7 +19,9 @@ use std::net::UdpSocket;
 */
 use server::server::start_server;
 use client::client::send_text;
-use server::web::http_server::{http_server, fetch_file_list, request_file};
+// Fixed: Removed `request_file` from imports to resolve unused import warning.
+use server::web::http_server::{http_server, fetch_file_list}; 
+
 /*
 use file_copy::{process_and_add_world};
 use file_copy::{get_world_list, open_world};
@@ -57,11 +60,14 @@ impl OSAI{
         send_text(dst_ip, dst_port, text).await;
     }
 
-    pub fn request_http(ip: &str){
+    // Fixed: Changed `ip` to `_ip` to resolve the unused variable warning.
+    pub fn request_http(_ip: &str){
         let mut ip = String::new();
-        io::stdin().read_line(&mut ip);
+        // Note: The argument `_ip` is unused as the value is read from stdin.
+        io::stdin().read_line(&mut ip).expect("Failed to read line for IP");
 
-        let url = format!("http://{}/share/files.json", ip);
+        let ip_trimmed = ip.trim();
+        let url = format!("http://{}/share/files.json", ip_trimmed);
         fetch_file_list(url);
     }
 
@@ -71,7 +77,7 @@ impl OSAI{
     }
 
     pub fn vocaloid() -> Result<(), hound::Error>{
-        vocaloid::emotion_vocaloid();     
+        vocaloid::emotion_vocaloid();    
         Ok(())
     }
 
@@ -79,13 +85,12 @@ impl OSAI{
         let output = Command::new("aplay")
             .arg("output.wav")
             .output()
-            .expect("faild to call");
+            .expect("failed to call aplay");
 
         print!("status: {}", output.status);
         print!("stdout: {}", String::from_utf8_lossy(&output.stdout));
         print!("stderr: {}", String::from_utf8_lossy(&output.stderr));
     }
-
 
     pub async fn run(&self) -> Result<(), String>{
         let _ = start_server("8080".to_string()).await?;
@@ -100,8 +105,49 @@ impl OSAI{
         //request_file();
         Ok(())
     }
-    
-    
 
+    // --- Methods used by task.rs ---
+
+    /// Executes Vocaloid emotion processing, resolving the call on the OSAI instance in task.rs.
+    // FIX: Now returns a Result type so task.rs can use .is_ok()
+    pub fn emotion_vocaloid(&self) -> Result<(), std::io::Error> {
+        // Assumes it wraps the existing static function.
+        match vocaloid::emotion_vocaloid() {
+            Ok(_) => Ok(()),
+            // We use a generic IO Error here, as the source of the `hound::Error` is internal.
+            // For simplicity in this context, we map it to a basic IO Error.
+            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, format!("Hound Error: {}", e))),
+        }
+    }
+
+    /// Executes a shell command, resolving the call on the OSAI instance in task.rs.
+    pub fn cmd(&self, command: &str) {
+        let parts: Vec<&str> = command.split_whitespace().collect();
+        if parts.is_empty() {
+            eprintln!("Error: Command string is empty.");
+            return;
+        }
+
+        let program = parts[0];
+        let args = &parts[1..];
+        
+        let output = match Command::new(program)
+            .args(args)
+            .output()
+        {
+            Ok(out) => out,
+            Err(e) => {
+                eprintln!("Failed to execute command '{}': {}", command, e);
+                return;
+            }
+        };
+
+        println!("Command Status: {}", output.status);
+        if !output.stdout.is_empty() {
+            println!("Stdout: {}", String::from_utf8_lossy(&output.stdout));
+        }
+        if !output.stderr.is_empty() {
+            eprintln!("Stderr: {}", String::from_utf8_lossy(&output.stderr));
+        }
+    }
 }
-
