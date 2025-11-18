@@ -4,6 +4,8 @@ use crate::ai::hebbian_local::ai;
 use crate::ai::state::{MY_VEC, W1, W2, SERVER_LIST, ServerInfo};
 
 use crate::fileIO::create_lyric::create_lyric;
+use crate::IOT::task::add_new_task;
+
 
 pub fn process_format(
     format: [u8; 2],
@@ -53,6 +55,22 @@ pub fn process_format(
             }
             format!("AI check result: trusted={}", is_trusted)
         }
+
+        [0, 3] => {
+            println!("receive data (Task Registration)");
+
+            let payload_str = String::from_utf8_lossy(&data_payload).to_string();
+            match add_new_task(&payload_str) {
+                Ok(task) => format!("Task Registered: {}", task.name),
+                Err(e) => {
+                    eprintln!("Task registration failed: {}", e);
+                    format!("Task Registration Error: {}", e)
+                }
+            }
+        }
+        
+
+
 
         [0xFF, 0xFF] => {
             println!("--- Signal ---");
