@@ -3,5 +3,15 @@
     "datetime": "2025-11-18:18:36",
     "name": "ご飯",
     "notified": true
+  },
+  {
+    "datetime": "2025-11-18:18:57",
+    "name": "ご飯",
+    "notified": true
+  },
+  {
+    "datetime": "2025-11-18:22:13",
+    "name": "飲み物買いに行く",
+    "notified": true
   }
 ]

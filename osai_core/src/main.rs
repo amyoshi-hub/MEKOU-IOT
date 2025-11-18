@@ -3,8 +3,8 @@ use std::io::{self, stdout, Write};
 use std::process;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
+// osai_core::IOT::task から必要な関数をインポート
 use osai_core::IOT::task::add_new_task;
-// FIX 1: Removed `use std::env::args;` to prevent conflict with the argument variable name.
 use osai_core::IOT::task::load_tasks;
 use osai_core::IOT::task::gemini_call;
 use osai_core::IOT::task::display_tasks;
@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         reader.read_line(&mut buffer).await?;
         let full_cmd = buffer.trim();
 
-        // FIX 2: ユーザー入力をメインコマンドと引数文字列に分割
+        // ユーザー入力をメインコマンドと引数文字列に分割
         let mut parts = full_cmd.splitn(2, ' ');
         let main_command = parts.next().unwrap_or("");
         let args_str = parts.next().unwrap_or(""); // 引数部分
@@ -72,16 +72,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // 次のループのために出力結果をリセット
         output = Ok(String::new());
         
-        // FIX 3: マッチする対象を main_command に変更
+        // マッチする対象を main_command に変更
         match main_command {
             "server" => { let _ = osai.run().await; }
             "http_server" => OSAI::http_server().await?,
             "text" => OSAI::send_text_cli().await,
             "r_file" => OSAI::request_http("172.20.10.2"),
-            "vocaloid" => { OSAI::vocaloid()?; }
+            
+            // vocaloid コマンドの呼び出し
+            "vocaloid" => { 
+                // FIX: map_err の戻り値の型を明示
+                OSAI::vocaloid(args_str).map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+                output = Ok(format!("Vocaloid processing complete for: '{}'", args_str));
+            }
             "play" => OSAI::play(),
             "task" => {
-                // FIX: args_str を渡す
+                // ... task ロジックは省略せずにそのまま
                 match add_new_task(args_str) {
                     Ok(new_task) => {
                         let mut loaded_tasks = load_tasks();
@@ -89,39 +95,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         save_tasks(&loaded_tasks)?;
                         output = Ok(format!("Task added and saved: {}:{}", new_task.datetime, new_task.name));
                     }
-                    Err(e) => output = Err(e),
+                    Err(e) => output = Err(e.into()), // エラー型を Box<dyn Error> に変換
                 }
             }
             "show_tasks" => {
                 let current_tasks = load_tasks();
                 output = Ok(display_tasks(current_tasks));
             }
+            
             "ai" => {
-                // FIX: args_str の空チェックと渡し
                 if args_str.is_empty() {
                     output = Err("Error: 'ai' command requires a query.".into());
                 } else {
-                    match gemini_call(args_str).await {
+                    // Gemini APIを呼び出し、応答を得る
+                    match gemini_call(&(args_str.to_owned() + "ひらがなで返して")).await {
                         Ok(response_text) => {
-                            println!("[Vocaloid Output]: {}", response_text);
-                            output = Ok(format!("AI Response (Text):\n{}", response_text));
+                            println!("[AI Text Generated]: {}", response_text);
+                            
+                            // 1. AI応答テキストを vocaloid に渡し、エラーを Box<dyn Error>に変換して伝播
+                            // FIX: map_err の戻り値の型を明示
+                            OSAI::vocaloid(&response_text).map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+                            
+                            // 2. vocaloid 成功後、play を呼び出す
+                            OSAI::play();
+                            
+                            output = Ok(format!("AI Response (Text):\n{}\n[Vocalization complete. Playing audio...]", response_text));
                         }
-                        Err(e) => output = Err(e),
+                        Err(e) => output = Err(e.into()), // エラー型を Box<dyn Error> に変換
                     }
                 }
             }
             "help" => {
-                println!("Available commands:");
-                println!("  ai <query>         : Ask the Gemini AI a question and get a vocal response.");
-                println!("  task add <YYYY-MM-DD:HH:MM:Name> : Add a new task (e.g., task add 2025-12-25:08:30:Wake up call)");
-                println!("  task list          : Display all scheduled tasks.");
-                println!("  exit | quit        : Stop the application.");
-                println!("  vocaloid <text>    : Speak custom text (emotion parameters will be used).");
-                println!("  cmd <command>      : Execute a shell command (e.g., cmd ls -l).");
+                output = Ok(format!(
+                    "Available commands:
+  ai <query>         : Ask the Gemini AI a question and get a vocal response.
+  task <date:time:name> : Add a new task (e.g., task 2025-12-25:08:30:Wake up call)
+  show_tasks         : Display all scheduled tasks.
+  vocaloid <text>    : Speak custom text.
+  exit | quit        : Stop the application."
+                ));
             }
-            "exit" => process::exit(0),
+            "exit" | "quit" => process::exit(0),
             "" => continue,
-            _ => println!("Unknown command: {}", full_cmd),
-        } 
+            _ => output = Err(format!("Unknown command: {}", full_cmd).into()), // 未知のコマンドもエラーとして扱う
+        }
     }
 }

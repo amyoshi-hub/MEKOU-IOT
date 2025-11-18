@@ -78,8 +78,8 @@ impl OSAI{
         Ok(())
     }
 
-    pub fn vocaloid() -> Result<(), hound::Error>{
-        vocaloid::emotion_vocaloid();    
+    pub fn vocaloid(text: &str) -> Result<(), hound::Error>{
+        vocaloid::vocaloid(text);    
         Ok(())
     }
 
