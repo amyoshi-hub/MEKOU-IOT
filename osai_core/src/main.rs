@@ -9,6 +9,8 @@ use osai_core::IOT::task::load_tasks;
 use osai_core::IOT::task::gemini_call;
 use osai_core::IOT::task::display_tasks;
 use osai_core::IOT::task::save_tasks;
+use osai_core::IOT::task::run_task_scheduler;
+
 
 // 戻り値の型を、エラー時に Box<dyn std::error::Error> を返すように修正します。
 #[tokio::main]
@@ -16,6 +18,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // OSAI インスタンスの初期化
     let osai = OSAI::new();
+
+    let initial_tasks = load_tasks();
+    println!("Loaded {} tasks.", initial_tasks.len());
+
+    let scheduler_osai = osai.clone(); // OSAIをクローンしてタスクに所有権を渡す
+    tokio::spawn(async move {
+        run_task_scheduler(scheduler_osai, initial_tasks).await;
+    });
+    println!("\nOSAI-Core Task Manager is RUNNING.");
+
+
     
     // 標準入力を非同期で読み込むための設定
     let stdin = tokio::io::stdin();
@@ -97,7 +110,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
-
+            "help" => {
+                println!("Available commands:");
+                println!("  ai <query>         : Ask the Gemini AI a question and get a vocal response.");
+                println!("  task add <YYYY-MM-DD:HH:MM:Name> : Add a new task (e.g., task add 2025-12-25:08:30:Wake up call)");
+                println!("  task list          : Display all scheduled tasks.");
+                println!("  exit | quit        : Stop the application.");
+                println!("  vocaloid <text>    : Speak custom text (emotion parameters will be used).");
+                println!("  cmd <command>      : Execute a shell command (e.g., cmd ls -l).");
+            }
             "exit" => process::exit(0),
             "" => continue,
             _ => println!("Unknown command: {}", full_cmd),

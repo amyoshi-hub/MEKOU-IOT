@@ -21,6 +21,7 @@ use server::server::start_server;
 use client::client::send_text;
 // Fixed: Removed `request_file` from imports to resolve unused import warning.
 use server::web::http_server::{http_server, fetch_file_list}; 
+use std::process::Stdio;
 
 /*
 use file_copy::{process_and_add_world};
@@ -32,6 +33,7 @@ use server_list::request_server_list;
 */
 mod ai;
 
+#[derive(Clone)]
 pub struct OSAI;
 
 impl OSAI{
@@ -148,6 +150,32 @@ impl OSAI{
         }
         if !output.stderr.is_empty() {
             eprintln!("Stderr: {}", String::from_utf8_lossy(&output.stderr));
+        }
+    }
+
+    /// 外部の音声認識スクリプトを実行し、結果（テキスト）を取得します。
+    pub fn listen(&self) -> Result<String, io::Error> {
+        // NOTE: ここでは、実行ディレクトリにある 'SpeechToText.sh' というスクリプトを呼び出すことを想定します。
+        // このスクリプトはマイクから音声を録音し、結果のテキストを標準出力に出力するものとします。
+        
+        println!("[OSAI Listen] Waiting for speech input...");
+
+        // SpeechToText.sh を実行し、その標準出力をキャプチャする
+        let output = Command::new("sh")
+            .arg("SpeechToText.sh")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit()) // エラーはコンソールに表示
+            .spawn()?
+            .wait_with_output()?;
+
+        if output.status.success() {
+            let transcribed_text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            println!("[OSAI Listen] Transcription successful: {}", transcribed_text);
+            Ok(transcribed_text)
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            eprintln!("[OSAI Listen Error] Script failed. Status: {}. Stderr: {}", output.status, stderr);
+            Err(io::Error::new(io::ErrorKind::Other, "SpeechToText.sh failed to execute or returned an error."))
         }
     }
 }

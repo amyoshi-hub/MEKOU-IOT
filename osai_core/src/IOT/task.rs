@@ -8,11 +8,11 @@ use chrono::{Local, NaiveDateTime, Duration};
 use serde::{Serialize, Deserialize};
 use reqwest::Client;
 use tokio::time::sleep;
+use std::env::var;
 
 // 定数定義 (main.rsから移動)
 const TASK_FILE: &str = "scheduled_tasks.json";
 const LYRIC_FILE: &str = "lyric.txt";
-const API_KEY: &str = ""; 
 const API_URL: &str = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent";
 const EMOTION_PARAMS: &str = "5,5,5,5,5,5,5,5,5,5,5,5,5,5"; 
 
@@ -28,6 +28,14 @@ pub struct Task {
 
 pub async fn gemini_call(query: &str) -> Result<String, Box<dyn Error>> {
     
+    let api_key = match std::env::var("GEMINI_API_KEY") {
+        Ok(key) => key,
+        Err(_) => {
+            // キーが設定されていない場合、エラーを返して処理を中断
+            return Err("Error: GEMINI_API_KEY environment variable not set. Please set your API key.".into());
+        }
+    };
+
     let payload = serde_json::json!({
         "contents": [{ "parts": [{ "text": query }] }],
         "tools": [{ "google_search": {} }],
@@ -37,7 +45,7 @@ pub async fn gemini_call(query: &str) -> Result<String, Box<dyn Error>> {
     });
 
     let client = Client::new();
-    let url = format!("{}?key={}", API_URL, API_KEY);
+    let url = format!("{}?key={}", API_URL, api_key);
 
     for i in 0..3 {
         match client.post(&url).json(&payload).send().await {
@@ -77,7 +85,7 @@ pub async fn generate_and_save_lyric(task_name: &str, task_time_str: &str) -> Re
     
     // 1. Task Doc (Gemini呼び出し)
     let user_query = format!(
-        "タスク: {} が{}にあります。このタスクの内容を要約し、実行5分前であることを含めて、私に親切に教えてください。", 
+        "タスク: {} が{}にあります。このタスクの内容を要約し、実行5分前であることを含めて、私に親切に教えてください。絵文字は使わない", 
         task_name, 
         task_time_str
     );
