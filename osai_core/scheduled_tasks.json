@@ -13,5 +13,10 @@
     "datetime": "2025-11-18:22:13",
     "name": "飲み物買いに行く",
     "notified": true
+  },
+  {
+    "datetime": "2025-11-28:08:30",
+    "name": "Wakeup call",
+    "notified": false
   }
 ]
